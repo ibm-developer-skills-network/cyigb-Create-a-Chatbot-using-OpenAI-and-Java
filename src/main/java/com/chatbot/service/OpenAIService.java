@@ -36,7 +36,7 @@ public class OpenAIService {
 
         // Build request body
         Map<String, Object> requestBody = new HashMap<>();
-        requestBody.put("model", "gpt-3.5-turbo-1106");
+        requestBody.put("model", "gpt-4o-mini");
         requestBody.put("messages", messages);
         requestBody.put("max_tokens", 150);
 
