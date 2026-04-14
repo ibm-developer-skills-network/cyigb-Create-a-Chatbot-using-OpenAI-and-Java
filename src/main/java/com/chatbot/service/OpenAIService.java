@@ -47,7 +47,6 @@ public class OpenAIService {
         ObjectMapper objectMapper = new ObjectMapper();
 
         try {
-            // Make API call using String response type to handle error responses gracefully
             ResponseEntity<String> response = restTemplate.exchange(
                 endpoint,
                 HttpMethod.POST,
@@ -55,13 +54,17 @@ public class OpenAIService {
                 String.class
             );
 
-            Map<String, Object> responseData = objectMapper.readValue(response.getBody(), Map.class);
+            String body = response.getBody();
 
-            // Check if choices array is defined and not empty
-            if (responseData != null &&
-                responseData.containsKey("choices") &&
-                responseData.get("choices") instanceof List) {
+            // Check if response is valid JSON before parsing
+            if (body == null || !body.trim().startsWith("{")) {
+                System.err.println("OpenAI API returned non-JSON response (" + response.getStatusCode() + "): " + body);
+                return "Sorry, the API returned an unexpected response. Check your API key.";
+            }
 
+            Map<String, Object> responseData = objectMapper.readValue(body, Map.class);
+
+            if (responseData.containsKey("choices") && responseData.get("choices") instanceof List) {
                 List<Map<String, Object>> choices = (List<Map<String, Object>>) responseData.get("choices");
 
                 if (!choices.isEmpty() && choices.get(0).containsKey("message")) {
@@ -70,7 +73,15 @@ public class OpenAIService {
                 }
             }
 
-            System.err.println("Error: No valid response from OpenAI API: " + response.getBody());
+            // Handle JSON error responses from OpenAI (e.g. invalid API key)
+            if (responseData.containsKey("error")) {
+                Map<String, Object> error = (Map<String, Object>) responseData.get("error");
+                String errorMsg = (String) error.get("message");
+                System.err.println("OpenAI API error: " + errorMsg);
+                return "API error: " + errorMsg;
+            }
+
+            System.err.println("Error: No valid response from OpenAI API: " + body);
             return "Sorry, I couldn't understand that.";
 
         } catch (HttpClientErrorException e) {
