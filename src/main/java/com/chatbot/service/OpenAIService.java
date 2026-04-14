@@ -1,8 +1,10 @@
 package com.chatbot.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.*;
@@ -42,42 +44,38 @@ public class OpenAIService {
 
         HttpEntity<Map<String, Object>> entity = new HttpEntity<>(requestBody, headers);
 
+        ObjectMapper objectMapper = new ObjectMapper();
+
         try {
-            // Make API call
-            ResponseEntity<Map> response = restTemplate.exchange(
+            // Make API call using String response type to handle error responses gracefully
+            ResponseEntity<String> response = restTemplate.exchange(
                 endpoint,
                 HttpMethod.POST,
                 entity,
-                Map.class
+                String.class
             );
 
-            Map<String, Object> responseData = response.getBody();
-
-            // Log the entire API response for debugging
-            if (responseData != null && responseData.containsKey("choices")) {
-                List<Map<String, Object>> choices = (List<Map<String, Object>>) responseData.get("choices");
-                if (!choices.isEmpty()) {
-                    System.out.println("Response from OpenAI API: " + choices.get(0).get("message"));
-                }
-            }
+            Map<String, Object> responseData = objectMapper.readValue(response.getBody(), Map.class);
 
             // Check if choices array is defined and not empty
-            if (responseData != null && 
-                responseData.containsKey("choices") && 
+            if (responseData != null &&
+                responseData.containsKey("choices") &&
                 responseData.get("choices") instanceof List) {
-                
+
                 List<Map<String, Object>> choices = (List<Map<String, Object>>) responseData.get("choices");
-                
+
                 if (!choices.isEmpty() && choices.get(0).containsKey("message")) {
                     Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
                     return (String) message.get("content");
                 }
             }
 
-            // Handle the case where choices array is undefined or empty
-            System.err.println("Error: No valid response from OpenAI API");
+            System.err.println("Error: No valid response from OpenAI API: " + response.getBody());
             return "Sorry, I couldn't understand that.";
 
+        } catch (HttpClientErrorException e) {
+            System.err.println("OpenAI API error (" + e.getStatusCode() + "): " + e.getResponseBodyAsString());
+            return "Sorry, there was an API error: " + e.getStatusCode();
         } catch (Exception e) {
             System.err.println("Error calling OpenAI API: " + e.getMessage());
             e.printStackTrace();
