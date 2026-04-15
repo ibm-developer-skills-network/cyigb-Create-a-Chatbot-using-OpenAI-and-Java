@@ -22,7 +22,11 @@ public class OpenAIService {
     }
 
     public String generateResponse(String userMessage, List<Map<String, String>> conversationHistory) {
-        RestTemplate restTemplate = new RestTemplate();
+        RestTemplate restTemplate = new RestTemplate(
+            new org.springframework.http.client.BufferingClientHttpRequestFactory(
+                new org.springframework.http.client.SimpleClientHttpRequestFactory()
+            )
+        );
 
         // Build headers
         HttpHeaders headers = new HttpHeaders();
